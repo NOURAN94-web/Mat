@@ -1,0 +1,677 @@
+# Data storage
+    self.df = None
+    
+    # Fills for highlighting
+    self.dark_grey_fill = PatternFill(start_color='A9A9A9', end_color='A9A9A9', fill_type='solid')
+    self.pale_grey_fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
+    
+    # Create UI components
+    self.create_widgets()
+
+def create_widgets(self):
+    # Title
+    title_label = ttk.Label(self.root, text="Brahma Excel Generator", 
+                           font=("Arial", 16, "bold"))
+    title_label.pack(pady=10)
+    
+    # Frame for connection settings
+    conn_frame = ttk.LabelFrame(self.root, text="Database Connection Settings")
+    conn_frame.pack(fill="x", padx=10, pady=10)
+    
+    # Server
+    ttk.Label(conn_frame, text="Server:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+    self.server_entry = ttk.Entry(conn_frame, width=40)
+    self.server_entry.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+    
+    # Database
+    ttk.Label(conn_frame, text="Database:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+    self.db_entry = ttk.Entry(conn_frame, width=40)
+    self.db_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+    
+    # Authentication frame
+    auth_frame = ttk.LabelFrame(conn_frame, text="Authentication Method")
+    auth_frame.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="we")
+    
+    # Authentication type
+    self.auth_type = tk.StringVar(value="windows")
+    ttk.Radiobutton(auth_frame, text="Windows Authentication", variable=self.auth_type, 
+                  value="windows", command=self.toggle_auth_fields).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+    ttk.Radiobutton(auth_frame, text="SQL Server Authentication", variable=self.auth_type, 
+                  value="sql", command=self.toggle_auth_fields).grid(row=0, column=1, padx=5, pady=5, sticky="w")
+    
+    # Username/password fields (initially hidden)
+    self.user_label = ttk.Label(auth_frame, text="Username:")
+    self.user_entry = ttk.Entry(auth_frame, width=30)
+    self.pass_label = ttk.Label(auth_frame, text="Password:")
+    self.pass_entry = ttk.Entry(auth_frame, width=30, show="*")
+    
+    # Filter frame
+    filter_frame = ttk.LabelFrame(self.root, text="Optional Filters")
+    filter_frame.pack(fill="x", padx=10, pady=10)
+    
+    # OPU Date filter
+    ttk.Label(filter_frame, text="OPU Date:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+    self.opu_date = ttk.Entry(filter_frame, width=15)
+    self.opu_date.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+    ttk.Label(filter_frame, text="(YYYY-MM-DD - Leave blank for all)").grid(row=0, column=2, padx=5, pady=5, sticky="w")
+    
+    # Laboratory filter
+    ttk.Label(filter_frame, text="Laboratory:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+    self.lab_entry = ttk.Entry(filter_frame, width=15)
+    self.lab_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+    ttk.Label(filter_frame, text="(Leave blank for all)").grid(row=1, column=2, padx=5, pady=5, sticky="w")
+    
+    # Action buttons frame
+    button_frame = ttk.LabelFrame(self.root, text="Actions")
+    button_frame.pack(fill="x", padx=10, pady=10)
+    
+    # Main action buttons
+    action_buttons = ttk.Frame(button_frame)
+    action_buttons.pack(pady=10)
+    
+    ttk.Button(action_buttons, text="📊 Load Data from Database", 
+              command=self.load_data, width=30).pack(side="left", padx=5)
+    
+    self.generate_btn = ttk.Button(action_buttons, text="📄 Generate Brahma Excel", 
+                                  command=self.generate_brahma_excel, width=30, state="disabled")
+    self.generate_btn.pack(side="left", padx=5)
+    
+    # Data preview frame
+    preview_frame = ttk.LabelFrame(self.root, text="Data Preview")
+    preview_frame.pack(fill="both", expand=True, padx=10, pady=10)
+    
+    # Create treeview for preview
+    tree_container = ttk.Frame(preview_frame)
+    tree_container.pack(fill="both", expand=True)
+    
+    self.tree = ttk.Treeview(tree_container, height=15)
+    self.tree.pack(fill="both", expand=True, side="left")
+    
+    # Add scrollbars
+    v_scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.tree.yview)
+    v_scrollbar.pack(side="right", fill="y")
+    self.tree.configure(yscrollcommand=v_scrollbar.set)
+    
+    h_scrollbar = ttk.Scrollbar(preview_frame, orient="horizontal", command=self.tree.xview)
+    h_scrollbar.pack(fill="x")
+    self.tree.configure(xscrollcommand=h_scrollbar.set)
+    
+    # Status bar
+    self.status_var = tk.StringVar()
+    self.status_var.set("Ready - Connect to database and load data from report.HeparinPredictionView")
+    status_bar = ttk.Label(self.root, textvariable=self.status_var, relief="sunken", anchor="w")
+    status_bar.pack(side="bottom", fill="x")
+    
+    # Initially hide SQL auth fields
+    self.toggle_auth_fields()
+
+def toggle_auth_fields(self):
+    """Toggle SQL authentication fields visibility"""
+    if self.auth_type.get() == "sql":
+        self.user_label.grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.user_entry.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        self.pass_label.grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.pass_entry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+    else:
+        self.user_label.grid_forget()
+        self.user_entry.grid_forget()
+        self.pass_label.grid_forget()
+        self.pass_entry.grid_forget()
+
+def get_connection_string(self):
+    """Build SQL Server connection string"""
+    server = self.server_entry.get().strip()
+    database = self.db_entry.get().strip()
+    
+    if not server or not database:
+        raise ValueError("Server and Database fields are required")
+    
+    if self.auth_type.get() == "windows":
+        return f'DRIVER={{SQL Server}};SERVER={server};DATABASE={database};Trusted_Connection=yes;'
+    else:
+        username = self.user_entry.get().strip()
+        password = self.pass_entry.get()
+        if not username or not password:
+            raise ValueError("Username and Password are required for SQL Server Authentication")
+        return f'DRIVER={{SQL Server}};SERVER={server};DATABASE={database};UID={username};PWD={password}'
+
+def get_query(self):
+    """Get the SQL query based on the fresh SQL file"""
+    query = """
+    SELECT
+        [report].[HeparinPredictionView].[EmbryoLotDate] AS EmbryoLotDate,
+        [report].[HeparinPredictionView].[OPUDate] AS OPUDate,
+        [report].[HeparinPredictionView].[SemenType] AS SemenType,
+        [report].[HeparinPredictionView].[BullShortName] AS BullName,
+        [report].[HeparinPredictionView].[SemenCode] AS BullCode,
+        [report].[HeparinPredictionView].[Sire A Lot Number] AS SireASemenLot,
+        [report].[HeparinPredictionView].[Laboratory] AS Lab,
+        [report].[HeparinPredictionView].[InVitroMaturationTime] AS MatTime,
+        [report].[HeparinPredictionView].[GradientType] AS GradientType,
+        [report].[HeparinPredictionView].[SpermConcentration] AS SpermConcentration,
+        [report].[HeparinPredictionView].[HeparinConcentration] AS HeparinConcentration,
+        [report].[HeparinPredictionView].[OocytesMatured] AS OocytesinMaturation,
+        [report].[PowerPivotDonorDataView].[DonorAgeAtOPUInMonths] AS DonorAge,
+
+        -- Collection Site mapping
+        CASE
+            WHEN [report].[HeparinPredictionView].[CollectionSite] IN (
+                'Sicotte 1', 'Sicotte 15-6', 'Sicotte 5', 'Sicotte 7-8-9', 'Sicotte 5/15-6'
+            ) THEN 'Sicotte'
+            WHEN [report].[HeparinPredictionView].[CollectionSite] = 'ARC(AgWest)' THEN 'ARC'
+            WHEN [report].[HeparinPredictionView].[CollectionSite] = 'BoviteqTrudeau' THEN 'Trudeau'
+            WHEN [report].[HeparinPredictionView].[CollectionSite] = 'Sonialachapelle(onfarm)' THEN 'Sonia'
+            WHEN [report].[HeparinPredictionView].[CollectionSite] = 'HeartlandVeterinaryServices' THEN 'Heartland'
+            WHEN [report].[HeparinPredictionView].[CollectionSite] = 'YanickDubois(onfarm)' THEN 'Yanick'
+            WHEN [report].[HeparinPredictionView].[CollectionSite] = 'McIntoshEmbryoTransferInc.' THEN 'McIntosh'
+            WHEN [report].[HeparinPredictionView].[CollectionSite] = 'GuyMassicotte(onfarm)' THEN 'Guy'
+            ELSE [report].[HeparinPredictionView].[CollectionSite]
+        END AS CollectionSite,
+
+        -- Sperm Concentration logic
+        CASE
+            WHEN ([report].[HeparinPredictionView].[SpermConcentration] IS NULL OR [report].[HeparinPredictionView].[SpermConcentration] = '')
+                AND [report].[HeparinPredictionView].[SemenType] = 'Conventional' THEN 20
+            WHEN ([report].[HeparinPredictionView].[SpermConcentration] IS NULL OR [report].[HeparinPredictionView].[SpermConcentration] = '')
+                AND [report].[HeparinPredictionView].[SemenType] IN ('Sexed Semen Female', 'Sexed Semen Male', 'Reverse Sort Male', 'Reverse Sort Female') THEN 15
+            ELSE [report].[HeparinPredictionView].[SpermConcentration]
+        END AS SpermDose,
+
+        -- Comments mapping
+        CASE
+            WHEN [report].[HeparinPredictionView].[Comments] LIKE '%Swim-Up Milk%' AND [report].[HeparinPredictionView].[Comments] LIKE '%Swim-Up%' THEN 'SU'
+            WHEN [report].[HeparinPredictionView].[Comments] LIKE '%BP GRADIENT%' THEN 'BP GRADIENT'
+            WHEN [report].[HeparinPredictionView].[Comments] LIKE '%SSTOP/BOTTOM%' THEN 'SSF'
+            WHEN [report].[HeparinPredictionView].[Comments] LIKE '%BP45/90 RS-G%' THEN 'RS'
+            ELSE NULL
+        END AS CommentCode,
+
+        -- SemenType short code
+        CASE
+            WHEN [report].[HeparinPredictionView].[SemenType] = 'Sexed Semen Female' THEN 'SSF'
+            WHEN [report].[HeparinPredictionView].[SemenType] = 'Sexed Semen Male' THEN 'SSM'
+            WHEN [report].[HeparinPredictionView].[SemenType] = 'Reverse Sort Male' THEN 'RSM'
+            WHEN [report].[HeparinPredictionView].[SemenType] = 'Reverse Sort Female' THEN 'RSF'
+            WHEN [report].[HeparinPredictionView].[SemenType] = 'Conventional' THEN 'CONV'
+            ELSE NULL
+        END AS SemenTypeCode,
+
+        -- InVitroMaturationTimediff: difference from average for same bull
+        ABS(
+            [report].[HeparinPredictionView].[InVitroMaturationTime] -
+            AVG([report].[HeparinPredictionView].[InVitroMaturationTime]) OVER (
+                PARTITION BY [report].[HeparinPredictionView].[BullShortName], [report].[HeparinPredictionView].[SemenCode]
+            )
+        ) AS InVitroMaturationTimediff,
+
+        -- InVitroMaturationTimeav: average for same bull, only if diff > 2
+        CASE
+            WHEN ABS(
+                [report].[HeparinPredictionView].[InVitroMaturationTime] -
+                AVG([report].[HeparinPredictionView].[InVitroMaturationTime]) OVER (
+                    PARTITION BY [report].[HeparinPredictionView].[BullShortName], [report].[HeparinPredictionView].[SemenCode]
+                )
+            ) > 2
+            THEN AVG([report].[HeparinPredictionView].[InVitroMaturationTime]) OVER (
+                PARTITION BY [report].[HeparinPredictionView].[BullShortName], [report].[HeparinPredictionView].[SemenCode]
+            )
+            ELSE [report].[HeparinPredictionView].[InVitroMaturationTime]
+        END AS InVitroMaturationTimeav
+
+    FROM [report].[HeparinPredictionView]
+    LEFT JOIN [report].[PowerPivotDonorDataView] 
+        ON [report].[HeparinPredictionView].[DonorID] = [report].[PowerPivotDonorDataView].[DonorID]
+
+    WHERE
+        [report].[HeparinPredictionView].[SemenType] IS NOT NULL
+        AND [report].[HeparinPredictionView].[BullShortName] IS NOT NULL
+        AND [report].[HeparinPredictionView].[SemenCode] IS NOT NULL
+        AND [report].[HeparinPredictionView].[isConfirmed] = 1
+    """
+    
+    # Add optional filters
+    opu_date = self.opu_date.get().strip()
+    lab = self.lab_entry.get().strip()
+    
+    if opu_date:
+        query += f"\nAND [report].[HeparinPredictionView].[OPUDate] = '{opu_date}'"
+    
+    if lab:
+        query += f"\nAND [report].[HeparinPredictionView].[Laboratory] = '{lab}'"
+    
+    # Add ordering
+    query += "\nORDER BY [report].[HeparinPredictionView].[EmbryoLotDate] ASC"
+    
+    return query
+
+def load_data(self):
+    """Load data from the database using the SQL query"""
+    try:
+        # Validate inputs
+        if not self.server_entry.get().strip() or not self.db_entry.get().strip():
+            messagebox.showwarning("Missing Information", "Please enter Server and Database name")
+            return
+        
+        # Clear current treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        self.status_var.set("Connecting to database...")
+        self.root.update_idletasks()
+        
+        # Get connection string and connect
+        conn_str = self.get_connection_string()
+        conn = pyodbc.connect(conn_str, timeout=30)
+        
+        self.status_var.set("Executing query from report.HeparinPredictionView...")
+        self.root.update_idletasks()
+        
+        # Execute query and fetch results
+        query = self.get_query()
+        self.df = pd.read_sql(query, conn)
+        
+        # Close connection
+        conn.close()
+        
+        # Convert date columns to datetime
+        if 'EmbryoLotDate' in self.df.columns:
+            self.df['EmbryoLotDate'] = pd.to_datetime(self.df['EmbryoLotDate'])
+        if 'OPUDate' in self.df.columns:
+            self.df['OPUDate'] = pd.to_datetime(self.df['OPUDate'])
+        
+        self.status_var.set(f"✓ Successfully loaded {len(self.df)} records from database")
+        
+        # Enable generate button
+        self.generate_btn.config(state="normal")
+        
+        # Display preview in treeview
+        self.setup_treeview()
+        self.populate_treeview()
+        
+        messagebox.showinfo("Success", 
+            f"Successfully loaded {len(self.df)} records from report.HeparinPredictionView\n\n" +
+            "You can now generate the Brahma Excel file.")
+        
+    except ValueError as ve:
+        self.status_var.set(f"Validation Error: {str(ve)}")
+        messagebox.showerror("Validation Error", str(ve))
+    except pyodbc.Error as db_err:
+        self.status_var.set(f"Database Error: {str(db_err)}")
+        messagebox.showerror("Database Connection Error", 
+            f"Failed to connect to database:\n\n{str(db_err)}\n\n" +
+            "Please check your connection settings.")
+    except Exception as e:
+        self.status_var.set(f"Error: {str(e)}")
+        messagebox.showerror("Error", f"Failed to load data:\n{str(e)}")
+        import traceback
+        traceback.print_exc()
+
+def setup_treeview(self):
+    """Configure treeview columns for preview"""
+    # Show key columns in preview
+    preview_columns = ['EmbryoLotDate', 'OPUDate', 'BullName', 'BullCode', 'SemenType', 
+                      'Lab', 'CollectionSite', 'MatTime', 'InVitroMaturationTimeav']
+    
+    self.tree["columns"] = preview_columns
+    self.tree["show"] = "headings"
+    
+    # Set column headers and widths
+    for col in preview_columns:
+        self.tree.heading(col, text=col)
+        width = max(100, len(col) * 10)
+        self.tree.column(col, width=width, minwidth=50)
+
+def populate_treeview(self):
+    """Populate treeview with data preview"""
+    preview_columns = ['EmbryoLotDate', 'OPUDate', 'BullName', 'BullCode', 'SemenType', 
+                      'Lab', 'CollectionSite', 'MatTime', 'InVitroMaturationTimeav']
+    
+    # Limit to first 100 rows for display performance
+    display_df = self.df.head(100)
+    
+    # Insert data rows
+    for _, row in display_df.iterrows():
+        values = []
+        for col in preview_columns:
+            val = row[col]
+            values.append(str(val) if pd.notna(val) else "")
+        self.tree.insert("", "end", values=values)
+    
+    if len(self.df) > 100:
+        self.status_var.set(f"✓ Loaded {len(self.df)} records. Displaying first 100 in preview")
+
+def generate_brahma_excel(self):
+    """Generate the Brahma Excel file according to the logical guide"""
+    if self.df is None or self.df.empty:
+        messagebox.showwarning("No Data", "Please load data from database first")
+        return
+    
+    try:
+        self.status_var.set("Processing data according to Brahma logic...")
+        self.root.update_idletasks()
+        
+        # Process the data
+        self.process_brahma_logic()
+        
+        self.status_var.set("Generating Excel file...")
+        self.root.update_idletasks()
+        
+        # Generate Excel file
+        output_path = self.create_excel_file()
+        
+        if output_path:
+            self.status_var.set(f"✓ Brahma Excel saved to: {output_path}")
+            messagebox.showinfo("Success", 
+                f"Brahma Excel file created successfully!\n\n" +
+                f"Location: {output_path}\n\n" +
+                f"Total records: {len(self.df)}\n" +
+                f"Total sessions: {int(self.df['FertilisationSession'].max())}")
+            
+            # Open the folder containing the file
+            folder_path = os.path.dirname(os.path.abspath(output_path))
+            if os.name == 'nt':
+                os.startfile(folder_path)
+            else:
+                os.system(f'open "{folder_path}"')
+        
+    except Exception as e:
+        self.status_var.set(f"Error: {str(e)}")
+        messagebox.showerror("Error", f"Failed to generate Brahma Excel:\n{str(e)}")
+        import traceback
+        traceback.print_exc()
+
+def process_brahma_logic(self):
+    """Process data according to Brahma logical guide"""
+    # Add required columns
+    self.df['FertilisationSession'] = None
+    self.df['FertilisationTime'] = None
+    self.df['CumulusExpansion'] = None
+    
+    # Calculate Age in months for highlighting logic
+    self.df['Age'] = self.df['DonorAge']
+    
+    # I. Calculate maturation time - already done in SQL (InVitroMaturationTimeav)
+    
+    # II. & III. Assign fertilization sessions
+    self.assign_fertilization_sessions()
+    
+    # IV. Adjust for sperm concentration
+    self.adjust_sperm_concentration()
+    
+    # V. Organize columns and sort
+    self.organize_data()
+
+def assign_fertilization_sessions(self):
+    """Assign fertilization sessions - Maximum 4 bulls per session"""
+    # Sort by maturation time average (ascending)
+    df_sorted = self.df.sort_values(by=['InVitroMaturationTimeav'], ascending=True).copy()
+    
+    session_assignments = {}
+    current_session = 1
+    current_session_bulls = []
+    su_counts = {}
+    
+    remaining_bulls = df_sorted.copy()
+    
+    while not remaining_bulls.empty:
+        candidate_bulls = remaining_bulls.copy()
+        selected_bull = None
+        
+        for idx, bull in candidate_bulls.iterrows():
+            bull_name = bull['BullName']
+            bull_code = bull['BullCode']
+            collection_site = bull['CollectionSite']
+            comment_code = bull['CommentCode']
+            semen_type_code = bull['SemenTypeCode']
+            mat_time = bull['InVitroMaturationTimeav']
+            
+            # Check if session is full (MAX 4 bulls)
+            if len(current_session_bulls) >= 4:
+                break
+            
+            # Rule checks
+            restricted_sites = ['ARC', 'Guy', 'Heartland', 'McIntosh', 'Yanick']
+            site_restricted = collection_site in restricted_sites
+            
+            rs_type = comment_code == 'RS' or semen_type_code in ['RSM', 'RSF']
+            
+            is_su = comment_code == 'SU'
+            current_su_count = sum(1 for b in current_session_bulls 
+                                 if pd.notna(self.df.loc[b, 'CommentCode']) and self.df.loc[b]['CommentCode'] == 'SU')
+            su_restriction = is_su and current_su_count >= 2
+            
+            can_add = True
+            
+            # Site restriction for first 2 sessions
+            if site_restricted and current_session <= 2:
+                future_space = (len(df_sorted) - len(session_assignments)) > 8
+                if future_space:
+                    can_add = False
+            
+            # RS restrictions
+            if rs_type:
+                if current_session <= 3 and mat_time < 21:
+                    can_add = False
+            
+            # SU restriction
+            if su_restriction:
+                prev_session_su = current_session > 1 and su_counts.get(current_session-1, 0) == 1
+                if not prev_session_su:
+                    can_add = False
+            
+            if can_add:
+                selected_bull = idx
+                break
+        
+        if selected_bull is None:
+            if current_session_bulls:
+                current_session += 1
+                current_session_bulls = []
+                continue
+            else:
+                selected_bull = remaining_bulls.index[0]
+        
+        # Add bull to session
+        current_session_bulls.append(selected_bull)
+        session_assignments[selected_bull] = current_session
+        
+        is_su = pd.notna(self.df.loc[selected_bull, 'CommentCode']) and self.df.loc[selected_bull]['CommentCode'] == 'SU'
+        su_counts[current_session] = su_counts.get(current_session, 0) + (1 if is_su else 0)
+        
+        remaining_bulls = remaining_bulls.drop(selected_bull)
+        
+        # If session full (4 bulls), move to next session
+        if len(current_session_bulls) >= 4:
+            current_session += 1
+            current_session_bulls = []
+    
+    # Assign sessions to dataframe
+    for bull_idx, session in session_assignments.items():
+        self.df.at[bull_idx, 'FertilisationSession'] = session
+
+def adjust_sperm_concentration(self):
+    """Adjust sperm concentration based on donor age (Rule IV)"""
+    # Rule IV.1: If DonorAge ≤ 166 months, set SpermDose to 15 and flag with dark grey
+    self.df['DarkGreyHighlight'] = self.df['Age'] <= 166
+    self.df.loc[self.df['DarkGreyHighlight'], 'SpermDose'] = 15
+    
+    # Rule IV.2: Flag with pale grey if SpermDose is not blank and not 15
+    self.df['PaleGreyHighlight'] = (pd.notna(self.df['SpermDose']) & 
+                                    (self.df['SpermDose'] != 15) & 
+                                    (self.df['SpermDose'] != ''))
+    
+    # Special case for SSF
+    ssf_mask = self.df['SemenTypeCode'] == 'SSF'
+    self.df.loc[ssf_mask & (self.df['SpermDose'] != 15), 'PaleGreyHighlight'] = True
+
+def organize_data(self):
+    """Organize and sort data according to Rule V"""
+    if not self.df['FertilisationSession'].isna().all():
+        self.df = self.df.sort_values(by=['FertilisationSession', 'BullName', 'MatTime'], 
+                                     ascending=[True, True, True])
+
+def create_excel_file(self):
+    """Create the Excel workbook with formatted sheets"""
+    # Get save location - Documents folder
+    documents_path = os.path.join(os.path.expanduser('~'), 'Documents')
+    if not os.path.exists(documents_path):
+        try:
+            os.makedirs(documents_path)
+        except:
+            documents_path = "C:\\"
+    
+    current_date = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"Brahma_Excel_{current_date}.xlsx"
+    output_path = os.path.join(documents_path, filename)
+    
+    # Create workbook
+    wb = Workbook()
+    
+    # Create sheets
+    self.create_mat_fert_dev_sheet(wb)
+    self.create_semen_localization_sheet(wb)
+    
+    # Remove default sheet
+    if 'Sheet' in wb.sheetnames:
+        del wb['Sheet']
+    
+    # Save workbook
+    try:
+        wb.save(output_path)
+        return output_path
+    except PermissionError:
+        alt_path = os.path.join(documents_path, f"Brahma_Excel_{current_date}_alt.xlsx")
+        wb.save(alt_path)
+        return alt_path
+
+def create_mat_fert_dev_sheet(self, wb):
+    """Create Mat, Fert, Dev worksheet"""
+    ws = wb.create_sheet('Mat, Fert, Dev')
+    
+    columns = [
+        'FertilisationSession', 'EmbryoLotDate', 'OPUDate', 'BullName', 'BullCode', 
+        'SemenType', 'SemenTypeCode', 'CommentCode', 'Lab', 'CollectionSite', 
+        'MatTime', 'SpermDose', 'HeparinConcentration', 
+        'FertilisationTime', 'CumulusExpRetryClaude does not have the ability to run the code it generates yet.NContinuepythonansion', 'SireASemenLot',
+            'GradientType', 'OocytesinMaturation', 'DonorAge'
+        ]
+        
+        df_sheet = self.df[columns].copy()
+        
+        # Write headers
+        header_row = 1
+        for col_idx, col_name in enumerate(columns, 1):
+            cell = ws.cell(row=header_row, column=col_idx, value=col_name)
+            cell.font = Font(bold=True, size=11)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+            cell.font = Font(bold=True, size=11, color='FFFFFF')
+        
+        # Write data with highlighting
+        for r_idx, row in enumerate(dataframe_to_rows(df_sheet, index=False, header=False), header_row + 1):
+            for c_idx, value in enumerate(row, 1):
+                cell = ws.cell(row=r_idx, column=c_idx, value=value)
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+                
+                # Apply highlighting
+                row_idx = df_sheet.index[r_idx - header_row - 1]
+                if c_idx == columns.index('SpermDose') + 1:
+                    if self.df.loc[row_idx, 'DarkGreyHighlight']:
+                        cell.fill = self.dark_grey_fill
+                    elif self.df.loc[row_idx, 'PaleGreyHighlight']:
+                        cell.fill = self.pale_grey_fill
+        
+        # Format columns
+        for col_idx, col_name in enumerate(columns, 1):
+            column_letter = ws.cell(row=1, column=col_idx).column_letter
+            if col_name == 'CumulusExpansion':
+                ws.column_dimensions[column_letter].width = 25
+            elif col_name == 'SireASemenLot':
+                ws.column_dimensions[column_letter].width = 20
+            elif col_name == 'BullName':
+                ws.column_dimensions[column_letter].width = 18
+            elif col_name == 'CollectionSite':
+                ws.column_dimensions[column_letter].width = 18
+            else:
+                ws.column_dimensions[column_letter].width = 15
+        
+        # Apply borders
+        thin_border = Border(
+            left=Side(style='thin'), 
+            right=Side(style='thin'),
+            top=Side(style='thin'), 
+            bottom=Side(style='thin')
+        )
+        
+        for row in ws.iter_rows(min_row=1, max_row=len(df_sheet) + header_row):
+            for cell in row:
+                cell.border = thin_border
+        
+        # Freeze first row
+        ws.freeze_panes = 'A2'
+    
+    def create_semen_localization_sheet(self, wb):
+        """Create Semen Localization worksheet"""
+        ws = wb.create_sheet('Semen Localization')
+        
+        columns = [
+            'FertilisationSession', 'BullName', 'BullCode', 
+            'SemenType', 'SemenTypeCode', 'CommentCode', 'SpermDose',
+            'SireASemenLot', 'Lab'
+        ]
+        
+        df_sheet = self.df[columns].copy()
+        
+        # Sort as specified: session order, then bull name
+        df_sheet = df_sheet.sort_values(by=['FertilisationSession', 'BullName'], ascending=[True, True])
+        
+        # Write headers
+        header_row = 1
+        for col_idx, col_name in enumerate(columns, 1):
+            cell = ws.cell(row=header_row, column=col_idx, value=col_name)
+            cell.font = Font(bold=True, size=11, color='FFFFFF')
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        
+        # Write data
+        for r_idx, row in enumerate(dataframe_to_rows(df_sheet, index=False, header=False), header_row + 1):
+            for c_idx, value in enumerate(row, 1):
+                cell = ws.cell(row=r_idx, column=c_idx, value=value)
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+        
+        # Format columns
+        for col_idx, col_name in enumerate(columns, 1):
+            column_letter = ws.cell(row=1, column=col_idx).column_letter
+            if col_name == 'SireASemenLot':
+                ws.column_dimensions[column_letter].width = 20
+            elif col_name == 'BullName':
+                ws.column_dimensions[column_letter].width = 18
+            else:
+                ws.column_dimensions[column_letter].width = 15
+        
+        # Apply borders
+        thin_border = Border(
+            left=Side(style='thin'), 
+            right=Side(style='thin'),
+            top=Side(style='thin'), 
+            bottom=Side(style='thin')
+        )
+        
+        for row in ws.iter_rows(min_row=1, max_row=len(df_sheet) + header_row):
+            for cell in row:
+                cell.border = thin_border
+        
+        # Freeze first row
+        ws.freeze_panes = 'A2'
+
+
+# Main application launcher
+def main():
+    """Launch the Brahma application"""
+    root = tk.Tk()
+    app = BrahmaApplication(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
